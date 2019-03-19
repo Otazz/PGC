@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from generate_data import *
+import math
 import matplotlib.pyplot as plt
 
 
@@ -23,7 +24,7 @@ h1 = 32
 output_dim = 1
 num_layers = 2
 learning_rate = 1e-3
-num_epochs = 1000
+num_epochs = 1
 dtype = torch.float
 
 #####################
@@ -65,15 +66,23 @@ class LSTM(nn.Module):
 
 model = LSTM(lstm_input_size, h1, batch_size=num_train, output_dim=output_dim, num_layers=num_layers)
 
-def loss_new(d, y, a=2, sig=1):
+
+
+def loss_new(d, y, a=0.001, sig=2.0):
+    sqrt_pi = math.sqrt(2. * math.pi)
     d = d.unsqueeze(0)
     y = y.unsqueeze(0)
-    gaussian = torch.exp(-1/2. * d.t().repeat(1, d.shape[1]) - y.repeat(y.shape[1], 1)) * a/(2. * sig)
+    d_int = (d.t().repeat(1, d.shape[1]) - y.repeat(y.shape[1], 1)) / sig
+    print(d_int)
+    gaussian = torch.exp(-1/2. * d_int * d_int) * 1/(sig * sqrt_pi)
+    print(gaussian)
     loss = torch.sum(gaussian) / d.shape[1]
     return loss
 
 
 loss_fn = loss_new
+#loss_fn = torch.nn.MSELoss(size_average=False)
+loss_mse = torch.nn.MSELoss(size_average=False)
 
 optimiser = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
@@ -84,9 +93,10 @@ for t in range(num_epochs):
 
     y_pred = model(X_train)
 
+
     loss = loss_fn(y_pred, y_train)
     if t % 100 == 0:
-        print("Epoch ", t, "MSE: ", loss.item())
+        print("Epoch ", t, "Error: ", loss.item())
     hist[t] = loss.item()
 
     optimiser.zero_grad()
@@ -94,7 +104,10 @@ for t in range(num_epochs):
     loss.backward()
 
     optimiser.step()
+print("pred", y_pred)
+print("train", y_train)
 
+print("\n\nFinal loss: ", loss_mse(y_pred, y_train))
 
 plt.plot(y_pred.detach().numpy(), label="Preds")
 plt.plot(y_train.detach().numpy(), label="Data")
