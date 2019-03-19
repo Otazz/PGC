@@ -73,30 +73,32 @@ class LSTM(nn.Module):
 
 model = LSTM(lstm_input_size, h1, batch_size=num_train, output_dim=output_dim, num_layers=num_layers)
 
+class Casamento_Loss(torch.nn.Module):
+    def __init__(self, sig=1.):
+        super(Casamento_Loss, self).__init__()
+        self.sig = sig
+        self.sqrt_pi = math.sqrt(2. * math.pi)
 
+    def forward(self, d, y):
+        d = d.unsqueeze(0)
+        y = y.unsqueeze(0)
 
-def loss_new(d, y, sig=2.0):
-    sqrt_pi = math.sqrt(2. * math.pi)
-    d = d.unsqueeze(0)
-    y = y.unsqueeze(0)
+        combined = -2 * self.get_component(d, y)
 
-    d_int = (d.t().repeat(1, d.shape[1]) - y.repeat(y.shape[1], 1)) / sig
-    gaussian = torch.exp(-1/2. * d_int * d_int) * 1/(sig * sqrt_pi)
-    combined = -2 * torch.sum(gaussian) / (d.shape[1] * y.shape[1])
+        same_y = self.get_component(y, y)
 
-    y_int = (y.t().repeat(1, y.shape[1]) - y.repeat(y.shape[1], 1)) / sig
-    gaussian = torch.exp(-1/2. * y_int * y_int) * 1/(sig * sqrt_pi)
-    same_y = torch.sum(gaussian) / (y.shape[1] * y.shape[1])
+        same_d = self.get_component(d, d)
 
-    d_int = (d.t().repeat(1, d.shape[1]) - d.repeat(d.shape[1], 1)) / sig
-    gaussian = torch.exp(-1/2. * d_int * d_int) * 1/(sig * sqrt_pi)
-    same_d = torch.sum(gaussian) / (d.shape[1] * d.shape[1])
+        return same_y + same_d + combined
 
-    return same_y + same_d + combined
+    def get_component(self, y1, y2):
+        d_int = (y1.t().repeat(1, y2.shape[1]) - y2.repeat(y1.shape[1], 1)) / self.sig
+        gaussian = torch.exp(-1/2. * d_int * d_int) * 1/(self.sig * self.sqrt_pi)
+        return torch.sum(gaussian) / (y1.shape[1] * y2.shape[1])
 
 
 if FLAGS.loss != 'MSE':
-    loss_fn = loss_new
+    loss_fn = Casamento_Loss(FLAGS.s).forward
 else:
     loss_fn = torch.nn.MSELoss(size_average=False)
 loss_mse = torch.nn.MSELoss(size_average=False)
@@ -110,10 +112,7 @@ for t in range(num_epochs):
 
     y_pred = model(X_train)
 
-    if FLAGS.loss != 'MSE':
-        loss = loss_fn(y_pred, y_train, FLAGS.s)
-    else:
-        loss = loss_fn(y_pred, y_train)
+    loss = loss_fn(y_pred, y_train)
     #print("LOSS", loss)
 
     if t % 100 == 0:
@@ -128,17 +127,13 @@ for t in range(num_epochs):
     optimiser.step()
 
 
-print(model.hidden)
-
-print("pred", y_pred)
-print("train", y_train)
-
 print("\n\nFinal loss: ", loss_mse(y_pred, y_train))
 
 plt.plot(y_pred.detach().numpy(), label="Preds")
 plt.plot(y_train.detach().numpy(), label="Data")
 plt.legend()
 plt.show()
+plt.savefig('k.png')
 
 plt.plot(hist, label="Training loss")
 plt.legend()
