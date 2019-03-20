@@ -30,7 +30,7 @@ else:
 h1 = 32
 output_dim = 1
 num_layers = 2
-learning_rate = 1e1
+learning_rate = 1e-5
 num_epochs = FLAGS.n_epochs
 dtype = torch.float
 
@@ -101,6 +101,7 @@ if FLAGS.loss != 'MSE':
     loss_fn = Casamento_Loss(FLAGS.s).forward
 else:
     loss_fn = torch.nn.MSELoss(size_average=False)
+
 loss_mse = torch.nn.MSELoss(size_average=False)
 
 optimiser = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -115,8 +116,10 @@ for t in range(num_epochs):
     loss = loss_fn(y_pred, y_train)
     #print("LOSS", loss)
 
-    if t % 100 == 0:
+    if t % 400 == 0:
         print("Epoch ", t, "Error: ", loss.item())
+        print("pred: ", y_pred)
+        print("real: ", y_train)
 
     hist[t] = loss.item()
 
@@ -126,6 +129,9 @@ for t in range(num_epochs):
 
     optimiser.step()
 
+
+print("pred: ", y_pred)
+print("real: ", y_train)
 
 print("\n\nFinal loss: ", loss_mse(y_pred, y_train))
 
