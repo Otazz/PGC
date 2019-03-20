@@ -9,7 +9,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('--n_epochs', type=int, default=1000)
 parser.add_argument('--loss', type=str, default='new')
-parser.add_argument('-s', type=float, default=2.0)
+parser.add_argument('-s', type=float, default=0.5)
 FLAGS, unparsed = parser.parse_known_args()
 
 # Data params
