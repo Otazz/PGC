@@ -104,7 +104,9 @@ else:
 
 loss_mse = torch.nn.MSELoss(size_average=False)
 
-optimiser = torch.optim.Adam(model.parameters(), lr=learning_rate)
+
+
+optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
 
 hist = np.zeros(num_epochs)
 
@@ -123,11 +125,11 @@ for t in range(num_epochs):
 
     hist[t] = loss.item()
 
-    optimiser.zero_grad()
+    optimizer.zero_grad()
 
     loss.backward()
 
-    optimiser.step()
+    optimizer.step()
 
 
 print("pred: ", y_pred)
