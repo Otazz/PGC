@@ -13,34 +13,21 @@ import numpy as np
 import random as rd
 from scipy.signal import lfilter
 
-#signals generation
-n = 10000
 
-#white noise generation
-s_data = np.random.uniform(-1, 1, n) #uniform white noise with 10000 samples between -0.9 and 0.9
-x_data = lfilter([1, 0.6, 0, 0, 0, 0, 0.2], 1, s_data) #addition of memory in the white noise
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--n_epochs', type=int, default=1000)
-parser.add_argument('--loss', type=str, default='new')
-parser.add_argument('-s', type=float, default=0.5)
+parser.add_argument('--n_epochs', type=int, default=1000, help='Number of epocs')
+parser.add_argument('--loss', type=str, default='new', help='Loss used on the model:\n- new for Casamento\n- mse for MSE')
+parser.add_argument('-s', type=float, default=0.5, help='Sigma used on the Casamento loss')
+parser.add_argument('-f', type=str, default='', help='Path for the train file, if empty it uses the default one')
+parser.add_argument('-t', type=str, default='', help='Path for the test file, if empty it uses the default one')
+parser.add_argument('-v', type=str, default='', help='Path for the validation file, if empty it skips validation')
+parser.add_argument('-n', type=int, default=1000, help='Number of examples used on the default train values')
+parser.add_argument('--print', type=bool, default=False, help='Print the loss on each epoch, if False it only prints every 1/10 of the number of epochs')
+parser.add_argument('--out', type=str, default='dist', help='The image output of the run:\n- hist for histogram\n-dist for distribution\n- both for both')
+
 FLAGS, unparsed = parser.parse_known_args()
-
-# Data params
-noise_var = 0
-num_datapoints = 100
-test_size = 0.2
-num_train = int((1-test_size) * num_datapoints)
-
-
-input_size = 20
-
-per_element = True
-if per_element:
-    lstm_input_size = 1
-else:
-    lstm_input_size = input_size
 
 h1 = 32
 output_dim = 1
@@ -49,19 +36,33 @@ learning_rate = 1e-3
 num_epochs = FLAGS.n_epochs
 dtype = torch.float
 
-#####################
-# Generate data
-#####################
-data = ARData(num_datapoints, num_prev=input_size, test_size=test_size, noise_var=noise_var, coeffs=fixed_ar_coefficients[input_size])
+if FLAGS.f:
+    data = np.loadtxt(FLAGS.f)
+    x_data = data[:1000, : -1]
+    s_data = data[:1000, -1]
+    input_size = x_data.shape[1]
+    num_train = x_data.shape[0]
+else:
+    #signals generation
+    n = FLAGS.n
+    #white noise generation
+    s_data = np.random.uniform(-1, 1, n) #uniform white noise with 10000 samples between -0.9 and 0.9
+    x_data = lfilter([1, 0.6, 0, 0, 0, 0, 0.2], 1, s_data) #addition of memory in the white noise
+    num_train = n
 
-X_train = torch.from_numpy(data.X_train).type(torch.Tensor)
-X_test = torch.from_numpy(data.X_test).type(torch.Tensor)
-y_train = torch.from_numpy(data.y_train).type(torch.Tensor).view(-1)
-y_test = torch.from_numpy(data.y_test).type(torch.Tensor).view(-1)
+def reshape_data(x, y, input_size):
+    x = torch.from_numpy(x).type(torch.Tensor).view([input_size, -1, 1])
+    y = torch.from_numpy(y).type(torch.Tensor).view(-1)
 
-X_train = X_train.view([input_size, -1, 1])
-X_test = X_test.view([input_size, -1, 1])
+    return (x, y)
 
+per_element = True
+if per_element:
+    lstm_input_size = 1
+else:
+    lstm_input_size = input_size
+
+x_data, s_data = reshape_data(x_data, s_data, input_size)
 
 class LSTM(nn.Module):
 
@@ -86,6 +87,7 @@ class LSTM(nn.Module):
         y_pred = self.linear(lstm_out[-1].view(self.batch_size, -1))
         return y_pred.view(-1)
 
+#model = LSTM(lstm_input_size, h1, batch_size=num_train, output_dim=output_dim, num_layers=num_layers)
 model = LSTM(lstm_input_size, h1, batch_size=num_train, output_dim=output_dim, num_layers=num_layers)
 
 class CasamentoLoss(torch.nn.Module):
@@ -119,6 +121,7 @@ class MSEControl(torch.nn.Module):
         return torch.sum((d - y) * (d - y))/d.shape[0]
 
 
+
 if FLAGS.loss == 'new':
     loss_fn = CasamentoLoss(FLAGS.s)
     print("Usando Casamento")
@@ -137,6 +140,7 @@ optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
 
 hist = np.zeros(num_epochs)
+#same_y = CasamentoLoss().get_component(s_data.unsqueeze(0), s_data.unsqueeze(0))
 
 for t in range(num_epochs):
 
@@ -144,15 +148,17 @@ for t in range(num_epochs):
 
     model.hidden = model.init_hidden()
 
-    y_pred = model(X_train)
+    y_pred = model(x_data)
 
-    loss = loss_fn(y_pred, y_train)
+    loss = loss_fn(y_pred, s_data)
     #print("LOSS", loss)
 
-    if t % 400 == 0:
+    #if t % 400 == 0:
+    if FLAGS.print:
         print("Epoch ", t, "Error: ", loss)
-        #print("pred: ", y_pred)
-        #print("real: ", y_train)
+    else:
+        if t % (num_epochs/10) == 0:
+            print("Epoch ", t, "Error: ", loss)
 
     hist[t] = loss.item()
 
@@ -164,17 +170,59 @@ for t in range(num_epochs):
 
 
 print("pred: ", y_pred)
-print("real: ", y_train)
+print("real: ", s_data)
 
-print("\n\nFinal loss: ", loss_mse(y_pred, y_train))
+print("\n\nFinal loss: ", loss_mse(y_pred, s_data))
 
-#plt.plot(y_pred.detach().numpy(), label="Preds")
-#plt.plot(y_train.detach().numpy(), label="Data")
-#plt.legend()
-#plt.show()
+if FLAGS.t:
+    test = np.loadtxt(FLAGS.t)
+    x_test = test[:, : -1]
+    s_test = test[:, -1]
+
+    x_test, s_test = reshape_data(x_test, s_test, x_test.shape[1])
+
+    y_test = model(x_test)
+
+    if FLAGS.out == 'dist':
+        plt.plot(y_test.detach().numpy(), label="Preds")
+        plt.plot(s_tests.detach().numpy(), label="Data")
+
+    elif FLAGS.out == 'hist':
+        plt.hist([s_test.detach().numpy(), y_test.detach().numpy()], bins=30, label=['d', 'y'])
+
+    else:
+        plt.plot(y_test.detach().numpy(), label="Preds")
+        plt.plot(s_test.detach().numpy(), label="Data")
+        plt.legend()
+        plt.savefig('test_dist.png')
+        plt.show()
+        plt.hist([s_test.detach().numpy(), y_test.detach().numpy()], bins=30, label=['d', 'y'])
+
+    plt.legend()
+    plt.savefig('test_hist.png')
+    plt.show()
 
 
-plt.hist([y_train.detach().numpy(), y_pred.detach().numpy()], bins=30, label=['d', 'y'])
+if FLAGS.v:
+    pass
+    #TO-DO
+
+
+if FLAGS.out == 'dist':
+    plt.plot(y_pred.detach().numpy(), label="Preds")
+    plt.plot(s_data.detach().numpy(), label="Data")
+
+elif FLAGS.out == 'hist':
+    plt.hist([s_data.detach().numpy(), y_pred.detach().numpy()], bins=30, label=['d', 'y'])
+
+else:
+    plt.plot(y_pred.detach().numpy(), label="Preds")
+    plt.plot(s_data.detach().numpy(), label="Data")
+    plt.legend()
+    plt.savefig('dist.png')
+    plt.show()
+    plt.hist([s_data.detach().numpy(), y_pred.detach().numpy()], bins=30, label=['d', 'y'])
+
 plt.legend()
 plt.savefig('k.png')
 plt.show()
