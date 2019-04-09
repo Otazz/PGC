@@ -21,7 +21,7 @@ parser.add_argument('--n_epochs', type=int, default=1000, help='Number of epocs'
 parser.add_argument('--loss', type=str, default='new', help='Loss used on the model:\n- new for Casamento\n- mse for MSE')
 parser.add_argument('-s', type=float, default=0.5, help='Sigma used on the Casamento loss')
 parser.add_argument('-f', type=str, default='', help='Path for the train file, if empty it uses the default one')
-parser.add_argument('-t', type=str, default='', help='Path for the test file, if empty it uses the default one')
+parser.add_argument('-t', type=str, default='', help='Path for the test file, if empty it skips test')
 parser.add_argument('-v', type=str, default='', help='Path for the validation file, if empty it skips validation')
 parser.add_argument('-n', type=int, default=1000, help='Number of examples used on the default train values')
 parser.add_argument('--print', type=bool, default=False, help='Print the loss on each epoch, if False it only prints every 1/10 of the number of epochs')
