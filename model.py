@@ -12,6 +12,7 @@ import argparse
 import numpy as np
 import random as rd
 from scipy.signal import lfilter
+from scipy.linalg import toeplitz
 
 
 
@@ -29,7 +30,7 @@ parser.add_argument('--out', type=str, default='dist', help='The image output of
 
 FLAGS, unparsed = parser.parse_known_args()
 
-h1 = 32
+h1 = 5
 output_dim = 1
 num_layers = 2
 learning_rate = 1e-3
@@ -49,6 +50,7 @@ else:
     s_data = np.random.uniform(-1, 1, n) #uniform white noise with 10000 samples between -0.9 and 0.9
     x_data = lfilter([1, 0.6, 0, 0, 0, 0, 0.2], 1, s_data) #addition of memory in the white noise
     num_train = n
+    input_size = 1
 
 def reshape_data(x, y, input_size):
     x = torch.from_numpy(x).type(torch.Tensor).view([input_size, -1, 1])
@@ -159,6 +161,7 @@ for t in range(num_epochs):
     else:
         if t % (num_epochs/10) == 0:
             print("Epoch ", t, "Error: ", loss)
+            print("Error MSE ", loss_mse(y_pred, s_data))
 
     hist[t] = loss.item()
 
@@ -169,8 +172,8 @@ for t in range(num_epochs):
     optimizer.step()
 
 
-print("pred: ", y_pred)
-print("real: ", s_data)
+#print("pred: ", y_pred)
+#print("real: ", s_data)
 
 print("\n\nFinal loss: ", loss_mse(y_pred, s_data))
 
