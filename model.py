@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from generate_data import *
 import math
+from train_pipe import TrainPipeline
 
 import matplotlib
 matplotlib.use('GTK3Agg')
@@ -90,8 +91,6 @@ class LSTM(nn.Module):
         y_pred = self.linear(lstm_out[-1].view(self.batch_size, -1))
         return y_pred.view(-1)
 
-#model = LSTM(lstm_input_size, h1, batch_size=num_train, output_dim=output_dim, num_layers=num_layers)
-#model = LSTM(lstm_input_size, h1, batch_size=num_train, output_dim=output_dim, num_layers=num_layers)
 
 class CasamentoLoss(torch.nn.Module):
     def __init__(self, sig=1.):
@@ -124,28 +123,7 @@ class MSEControl(torch.nn.Module):
         return torch.sum((d - y) * (d - y))/d.shape[0]
 
 
-
-if FLAGS.loss == 'new':
-    method = "Casamento"
-    loss_fn = CasamentoLoss(FLAGS.s)
-elif FLAGS.loss == 'msec':
-    method = "MSE Controle"
-    loss_fn = MSEControl()
-else:
-    method = "MSE normal"
-    loss_fn = torch.nn.MSELoss(size_average=False)
-
-print("Usando", method)
-
-
 loss_mse = torch.nn.MSELoss(size_average=False)
-
-
-
-#optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-
-
-#same_y = CasamentoLoss().get_component(s_data.unsqueeze(0), s_data.unsqueeze(0))
 
 if FLAGS.ep:
     test_methods = ['new', 'mse']
@@ -153,7 +131,8 @@ else:
     test_methods = [FLAGS.loss]
 
 
-hist_all = []
+pipes = []
+
 for met in test_methods:
     if met == 'new':
         method = "Casamento"
@@ -162,45 +141,25 @@ for met in test_methods:
         method = "MSE normal"
         loss_fn = torch.nn.MSELoss(size_average=False)
 
-    hist = np.zeros(num_epochs)
+    print("Usando", method)
+
     model = LSTM(lstm_input_size, h1, batch_size=num_train, output_dim=output_dim, num_layers=num_layers)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
+    pipe = TrainPipeline(model, loss_fn, optimizer, num_epochs, method)
+    pipe.train(x_data, s_data, FLAGS.print)
 
-    for t in range(num_epochs):
+    pipes.append(pipe)
 
-        model.zero_grad()
-
-        model.hidden = model.init_hidden()
-
-        y_pred = model(x_data)
-
-        loss = loss_fn(y_pred, s_data)
-        #print("LOSS", loss)
-
-        #if t % 400 == 0:
-        if FLAGS.print:
-            print("Epoch ", t, "Error: ", loss)
-        else:
-            if t % (num_epochs/10) == 0:
-                print("Epoch ", t, "Error: ", loss)
-
-        hist[t] = loss.item()
-
-        optimizer.zero_grad()
-
-        loss.backward()
-
-        optimizer.step()
-
-    hist_all.append(hist)
 
 if FLAGS.ep:
-    for i in range(len(test_methods)):
-        plt.plot(hist_all[i]/np.linalg.norm(hist_all[i]), label=test_methods[i])
+    for pipe in pipes:
+        plt.plot(pipe.hist/np.linalg.norm(pipe.hist), label=pipe.name)
     plt.legend()
     plt.savefig("train.png")
     plt.show()
+
+y_pred = pipes[0].y_pred
 
 
 
