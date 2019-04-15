@@ -27,10 +27,11 @@ parser.add_argument('-v', type=str, default='', help='Path for the validation fi
 parser.add_argument('-n', type=int, default=1000, help='Number of examples used on the default train values')
 parser.add_argument('--print', type=bool, default=False, help='Print the loss on each epoch, if False it only prints every 1/10 of the number of epochs')
 parser.add_argument('--out', type=str, default='dist', help='The image output of the run:\n- hist for histogram\n-dist for distribution\n- both for both')
+parser.add_argument('--ep', type=bool, default=True, help='Plot or not the loss comparisson by epoch')
 
 FLAGS, unparsed = parser.parse_known_args()
 
-h1 = 5
+h1 = 32
 output_dim = 1
 num_layers = 2
 learning_rate = 1e-3
@@ -90,7 +91,7 @@ class LSTM(nn.Module):
         return y_pred.view(-1)
 
 #model = LSTM(lstm_input_size, h1, batch_size=num_train, output_dim=output_dim, num_layers=num_layers)
-model = LSTM(lstm_input_size, h1, batch_size=num_train, output_dim=output_dim, num_layers=num_layers)
+#model = LSTM(lstm_input_size, h1, batch_size=num_train, output_dim=output_dim, num_layers=num_layers)
 
 class CasamentoLoss(torch.nn.Module):
     def __init__(self, sig=1.):
@@ -125,51 +126,82 @@ class MSEControl(torch.nn.Module):
 
 
 if FLAGS.loss == 'new':
+    method = "Casamento"
     loss_fn = CasamentoLoss(FLAGS.s)
-    print("Usando Casamento")
 elif FLAGS.loss == 'msec':
+    method = "MSE Controle"
     loss_fn = MSEControl()
-    print("Usando MSE Controle")
 else:
+    method = "MSE normal"
     loss_fn = torch.nn.MSELoss(size_average=False)
-    print("Usando MSE normal")
+
+print("Usando", method)
+
 
 loss_mse = torch.nn.MSELoss(size_average=False)
 
 
 
-optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+#optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
 
-hist = np.zeros(num_epochs)
 #same_y = CasamentoLoss().get_component(s_data.unsqueeze(0), s_data.unsqueeze(0))
 
-for t in range(num_epochs):
+if FLAGS.ep:
+    test_methods = ['new', 'mse']
+else:
+    test_methods = [FLAGS.loss]
 
-    model.zero_grad()
 
-    model.hidden = model.init_hidden()
-
-    y_pred = model(x_data)
-
-    loss = loss_fn(y_pred, s_data)
-    #print("LOSS", loss)
-
-    #if t % 400 == 0:
-    if FLAGS.print:
-        print("Epoch ", t, "Error: ", loss)
+hist_all = []
+for met in test_methods:
+    if met == 'new':
+        method = "Casamento"
+        loss_fn = CasamentoLoss(FLAGS.s)
     else:
-        if t % (num_epochs/10) == 0:
+        method = "MSE normal"
+        loss_fn = torch.nn.MSELoss(size_average=False)
+
+    hist = np.zeros(num_epochs)
+    model = LSTM(lstm_input_size, h1, batch_size=num_train, output_dim=output_dim, num_layers=num_layers)
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+
+
+    for t in range(num_epochs):
+
+        model.zero_grad()
+
+        model.hidden = model.init_hidden()
+
+        y_pred = model(x_data)
+
+        loss = loss_fn(y_pred, s_data)
+        #print("LOSS", loss)
+
+        #if t % 400 == 0:
+        if FLAGS.print:
             print("Epoch ", t, "Error: ", loss)
-            print("Error MSE ", loss_mse(y_pred, s_data))
+        else:
+            if t % (num_epochs/10) == 0:
+                print("Epoch ", t, "Error: ", loss)
 
-    hist[t] = loss.item()
+        hist[t] = loss.item()
 
-    optimizer.zero_grad()
+        optimizer.zero_grad()
 
-    loss.backward()
+        loss.backward()
 
-    optimizer.step()
+        optimizer.step()
+
+    hist_all.append(hist)
+
+if FLAGS.ep:
+    for i in range(len(test_methods)):
+        plt.plot(hist_all[i]/np.linalg.norm(hist_all[i]), label=test_methods[i])
+    plt.legend()
+    plt.savefig("train.png")
+    plt.show()
+
 
 
 #print("pred: ", y_pred)
@@ -229,3 +261,4 @@ else:
 plt.legend()
 plt.savefig('k.png')
 plt.show()
+plt.clf()
