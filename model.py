@@ -156,8 +156,13 @@ y_pred = pipes[0].run()
 
 
 if FLAGS.ep:
-    for pipe in pipes:
-        plt.plot(pipe.hist/np.linalg.norm(pipe.hist), label=pipe.name)
+    fig, ax1 = plt.subplots()
+    ax1.plot(pipes[0].hist/np.linalg.norm(pipes[0].hist), label=pipe.name, color='tab:red')
+    plt.legend()
+
+    ax2 = ax1.twinx()
+    ax2.plot(pipes[1].hist/np.linalg.norm(pipes[1].hist), label=pipe.name, color='tab:blue')
+
     plt.legend()
     plt.savefig("train.png")
     plt.show()
