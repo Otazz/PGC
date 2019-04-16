@@ -22,6 +22,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--n_epochs', type=int, default=1000, help='Number of epocs')
 parser.add_argument('--loss', type=str, default='new', help='Loss used on the model:\n- new for Casamento\n- mse for MSE')
 parser.add_argument('-s', type=float, default=0.5, help='Sigma used on the Casamento loss')
+parser.add_argument('--batch_size', type=int, default=100, help='Batch size used for training')
 parser.add_argument('-f', type=str, default='', help='Path for the train file, if empty it uses the default one')
 parser.add_argument('-t', type=str, default='', help='Path for the test file, if empty it skips test')
 parser.add_argument('-v', type=str, default='', help='Path for the validation file, if empty it skips validation')
@@ -38,20 +39,20 @@ num_layers = 2
 learning_rate = 1e-3
 num_epochs = FLAGS.n_epochs
 dtype = torch.float
+batch_size = FLAGS.batch_size
 
 if FLAGS.f:
     data = np.loadtxt(FLAGS.f)
-    x_data = data[:1000, : -1]
-    s_data = data[:1000, -1]
+    x_data = data[:, :-1]
+    s_data = data[:, -1]
     input_size = x_data.shape[1]
-    num_train = x_data.shape[0]
 else:
     #signals generation
     n = FLAGS.n
     #white noise generation
     s_data = np.random.uniform(-1, 1, n) #uniform white noise with 10000 samples between -0.9 and 0.9
     x_data = lfilter([1, 0.6, 0, 0, 0, 0, 0.2], 1, s_data) #addition of memory in the white noise
-    num_train = n
+    batch_size = n
     input_size = 1
 
 def reshape_data(x, y, input_size):
@@ -82,7 +83,7 @@ class LSTM(nn.Module):
 
         self.linear = nn.Linear(self.hidden_dim, output_dim)
 
-    def init_hidden(self):
+    def init_hidden(self, batch_size):
         return (torch.rand(self.num_layers, self.batch_size, self.hidden_dim),
                 torch.rand(self.num_layers, self.batch_size, self.hidden_dim))
 
@@ -143,13 +144,15 @@ for met in test_methods:
 
     print("Usando", method)
 
-    model = LSTM(lstm_input_size, h1, batch_size=num_train, output_dim=output_dim, num_layers=num_layers)
+    model = LSTM(lstm_input_size, h1, batch_size=batch_size, output_dim=output_dim, num_layers=num_layers)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-    pipe = TrainPipeline(model, loss_fn, optimizer, num_epochs, method)
+    pipe = TrainPipeline(model, loss_fn, optimizer, num_epochs, method, batch_size)
     pipe.train(x_data, s_data, FLAGS.print)
 
     pipes.append(pipe)
+
+y_pred = pipes[0].run()
 
 
 if FLAGS.ep:
@@ -178,3 +181,4 @@ if FLAGS.v:
 
 
 pipes[0].plot_results(FLAGS.out)
+pipes[1].plot_results(FLAGS.out, file="j.png")
