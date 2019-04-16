@@ -159,42 +159,17 @@ if FLAGS.ep:
     plt.savefig("train.png")
     plt.show()
 
-y_pred = pipes[0].y_pred
-
-
-
-#print("pred: ", y_pred)
-#print("real: ", s_data)
-
-print("\n\nFinal loss: ", loss_mse(y_pred, s_data))
 
 if FLAGS.t:
     test = np.loadtxt(FLAGS.t)
-    x_test = test[:, : -1]
+    X_test = test[:, : -1]
     s_test = test[:, -1]
 
-    x_test, s_test = reshape_data(x_test, s_test, x_test.shape[1])
+    X_test, s_test = reshape_data(X_test, s_test, y_test.shape[1])
 
-    y_test = model(x_test)
+    y_test = pipes[0].model(X_test)
 
-    if FLAGS.out == 'dist':
-        plt.plot(y_test.detach().numpy(), label="Preds")
-        plt.plot(s_tests.detach().numpy(), label="Data")
-
-    elif FLAGS.out == 'hist':
-        plt.hist([s_test.detach().numpy(), y_test.detach().numpy()], bins=30, label=['d', 'y'])
-
-    else:
-        plt.plot(y_test.detach().numpy(), label="Preds")
-        plt.plot(s_test.detach().numpy(), label="Data")
-        plt.legend()
-        plt.savefig('test_dist.png')
-        plt.show()
-        plt.hist([s_test.detach().numpy(), y_test.detach().numpy()], bins=30, label=['d', 'y'])
-
-    plt.legend()
-    plt.savefig('test_hist.png')
-    plt.show()
+    pipes[0].plot_results(FLAGS.out, y_test=y_test)
 
 
 if FLAGS.v:
@@ -202,22 +177,4 @@ if FLAGS.v:
     #TO-DO
 
 
-if FLAGS.out == 'dist':
-    plt.plot(y_pred.detach().numpy(), label="Preds")
-    plt.plot(s_data.detach().numpy(), label="Data")
-
-elif FLAGS.out == 'hist':
-    plt.hist([s_data.detach().numpy(), y_pred.detach().numpy()], bins=30, label=['d', 'y'])
-
-else:
-    plt.plot(y_pred.detach().numpy(), label="Preds")
-    plt.plot(s_data.detach().numpy(), label="Data")
-    plt.legend()
-    plt.savefig('dist.png')
-    plt.show()
-    plt.hist([s_data.detach().numpy(), y_pred.detach().numpy()], bins=30, label=['d', 'y'])
-
-plt.legend()
-plt.savefig('k.png')
-plt.show()
-plt.clf()
+pipes[0].plot_results(FLAGS.out)
