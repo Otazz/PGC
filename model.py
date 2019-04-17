@@ -14,7 +14,7 @@ import numpy as np
 import random as rd
 from scipy.signal import lfilter
 from scipy.linalg import toeplitz
-
+from get_data import get_data
 
 
 
@@ -42,10 +42,15 @@ dtype = torch.float
 batch_size = FLAGS.batch_size
 
 if FLAGS.f:
-    data = np.loadtxt(FLAGS.f)
-    x_data = data[:, :-1]
-    s_data = data[:, -1]
+    if FLAGS.f == "real":
+        x_data, s_data = get_data()
+    else:
+        data = np.loadtxt(FLAGS.f)
+        x_data = data[:, :-1]
+        s_data = data[:, -1]
+
     input_size = x_data.shape[1]
+
 else:
     #signals generation
     n = FLAGS.n
