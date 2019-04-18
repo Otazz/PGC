@@ -36,7 +36,7 @@ class MSEControl(torch.nn.Module):
 
 
 class CasamentoMult(torch.nn.Module):
-    def __init__(self, sig=1.):
+    def __init__(self, sig=.5):
         super(CasamentoMult, self).__init__()
         self.sig = sig
         self.sqrt_pi = math.sqrt(2. * math.pi)
@@ -61,15 +61,14 @@ class CasamentoMult(torch.nn.Module):
         self.sqrt_pi = math.sqrt(((2. * math.pi) ** y1.shape[1]) * (self.sig ** (2 * y1.shape[1])))
         d_int = (torch.transpose(y1, 0,1).repeat(1, y2.shape[1], 1) - y2.repeat(y1.shape[1], 1, 1))
         d_int_transposed = torch.transpose(d_int, 0, 1)
-        print(torch.eye(d_int.shape[1]).inverse().shape)
-        mid = torch.matmul(d_int_transposed, torch.eye(d_int.shape[1]).inverse()) * d_int
-
-        gaussian = torch.exp(-1/2. * mid) * 1/ self.sqrt_pi
+        print((torch.eye(d_int.shape[1])*(self.sig ** 2)))
+        mid = torch.matmul(d_int_transposed, (torch.eye(d_int.shape[1]) * (self.sig ** 2)).inverse()) * d_int
+        gaussian = torch.exp(-1/2. * mid) / self.sqrt_pi
         return torch.sum(gaussian) / (y1.shape[1] * y2.shape[1])
 
 cd = CasamentoMult()
 
-d = torch.Tensor([2.,7.,5.])
+d = torch.Tensor([2.,3.,5.])
 y = torch.Tensor([2.,4.,5.])
 loss = cd(d, y)
 print(loss)
