@@ -14,14 +14,14 @@ class TrainPipeline(object):
     def train(self, x_data, s_data, print_k):
         self.x_data = x_data
         self.s_data = s_data
-        
+
         divider = int(len(s_data) / self.batch)
 
         for t in range(self.n_epochs):
             i = t % divider
             x_data = self.x_data[:, i*self.batch : (i+1)*self.batch]
             s_data = self.s_data[i*self.batch : (i+1)*self.batch]
-            
+
             self.model.zero_grad()
             self.model.hidden = self.model.init_hidden(self.batch)
 
@@ -36,19 +36,19 @@ class TrainPipeline(object):
                     print("Epoch ", t, "Error: ", loss)
 
             self.hist[t] = loss.item()
-            
+
             self.opt.zero_grad()
 
             loss.backward()
 
             self.opt.step()
-        
+
         self.y_pred = self.run()
 
     def test(self, X_test):
         self.model.batch_size = self.X_test.shape[1]
         return self.model(X_test)
-    
+
     def run(self):
         self.model.batch_size = self.x_data.shape[1]
         return self.model(self.x_data)
@@ -80,7 +80,7 @@ class TrainPipeline(object):
             plt.plot(data.detach().numpy(), label="Preds")
             plt.plot(self.s_data.detach().numpy(), label="Data")
             plt.legend()
-            plt.savefig('dist.png')
+            plt.savefig('2'+file)
             plt.show()
             plt.hist([self.s_data.detach().numpy(), data.detach().numpy()], bins=30, label=['d', 'y'])
 

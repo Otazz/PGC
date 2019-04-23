@@ -145,7 +145,7 @@ for met in test_methods:
         loss_fn = CasamentoLoss(FLAGS.s)
     else:
         method = "MSE normal"
-        loss_fn = torch.nn.MSELoss(size_average=False)
+        loss_fn = torch.nn.MSELoss()
 
     print("Usando", method)
 
@@ -162,11 +162,11 @@ y_pred = pipes[0].run()
 
 if FLAGS.ep:
     fig, ax1 = plt.subplots()
-    ax1.plot(pipes[0].hist, label=pipe.name, color='tab:red')
+    ax1.plot(pipes[0].hist, label=pipes[0].name, color='tab:red')
     plt.legend()
 
     ax2 = ax1.twinx()
-    ax2.plot(pipes[1].hist, label=pipe.name, color='tab:blue')
+    ax2.plot(pipes[1].hist, label=pipes[1].name, color='tab:blue')
 
     plt.legend()
     plt.savefig("train.png")
