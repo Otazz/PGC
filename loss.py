@@ -1,6 +1,5 @@
 import torch
 import math
-from test_cov import cov
 
 from scipy.linalg import toeplitz
 
@@ -39,11 +38,12 @@ class CasamentoMult(torch.nn.Module):
     def __init__(self, sig=.5):
         super(CasamentoMult, self).__init__()
         self.sig = sig
-        self.sqrt_pi = math.sqrt(2. * math.pi)
 
     def forward(self, d, y):
-        d = torch.tensor(toeplitz(d))
-        y = torch.tensor(toeplitz(y))
+        d = self.toeplitz_like(d.unsqueeze(0), 50).t()
+        y = self.toeplitz_like(y.unsqueeze(0), 50).t()
+
+        self.sqrt_pi = math.sqrt(((2 * math.pi) ** y.shape[1]) * (self.sig ** (2 * y.shape[1])))
 
         d = d.unsqueeze(0)
         y = y.unsqueeze(0)
@@ -58,17 +58,28 @@ class CasamentoMult(torch.nn.Module):
 
 
     def get_component(self, y1, y2):
-        self.sqrt_pi = math.sqrt(((2. * math.pi) ** y1.shape[1]) * (self.sig ** (2 * y1.shape[1])))
         d_int = (torch.transpose(y1, 0,1).repeat(1, y2.shape[1], 1) - y2.repeat(y1.shape[1], 1, 1))
-        d_int_transposed = torch.transpose(d_int, 0, 1)
-        mid = torch.matmul(torch.matmul(d_int_transposed, (torch.eye(d_int.shape[1]) * (self.sig ** 2)).inverse()),d_int)
+
+        mid = (1 /self.sig ** 2) * d_int * d_int
         gaussian = torch.exp(-1/2. * mid) / self.sqrt_pi
         return torch.sum(gaussian) / (y1.shape[1] * y2.shape[1])
 
+    def toeplitz_like(self, x, n):
+        r = x
+        stop = x.shape[0] - 1
+
+        if n < stop:
+            stop = n
+
+        for i in range(stop):
+            r = torch.cat((r, x.roll(i+1)), 0)
+
+        return r
+
 cd = CasamentoMult()
 
-d = torch.Tensor([2.,4.,5.])
-y = torch.Tensor([2.,4.,5.])
+d = torch.Tensor([2.]*1000)
+y = torch.Tensor([4.3448]*1000)
 loss = cd(d, y)
 print(loss)
 #loss.backward(7

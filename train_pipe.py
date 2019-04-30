@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import torch
 
 class TrainPipeline(object):
     def __init__(self, model, loss, opt, n_epochs, loss_name, batch_size):
@@ -15,6 +16,7 @@ class TrainPipeline(object):
         self.x_data = x_data
         self.s_data = s_data
 
+
         divider = int(len(s_data) / self.batch)
 
         for t in range(self.n_epochs):
@@ -27,7 +29,9 @@ class TrainPipeline(object):
 
             self.y_pred = self.model(x_data)
 
-            loss = self.loss_fn(self.y_pred, s_data)
+            zero = torch.Tensor([0.] * len(s_data)).view(-1)
+
+            loss = self.loss_fn(self.y_pred - s_data, zero)
 
             if print_k:
                 print("Epoch ", t, "Error: ", loss)
