@@ -44,10 +44,10 @@ parser.add_argument('--ep', type=bool, default=True,
 
 FLAGS, unparsed = parser.parse_known_args()
 
-h1 = 32
+h1 = 64
 output_dim = 1
-num_layers = 2
-learning_rate = 1e-3
+num_layers = 1
+learning_rate = 1e-4
 num_epochs = FLAGS.n_epochs
 dtype = torch.float
 batch_size = FLAGS.batch_size
@@ -90,7 +90,7 @@ x_data, s_data = reshape_data(x_data, s_data, input_size)
 class LSTM(nn.Module):
 
     def __init__(self, input_dim, hidden_dim, batch_size, output_dim=1,
-                    num_layers=2):
+                    num_layers=1):
         super(LSTM, self).__init__()
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
@@ -106,8 +106,9 @@ class LSTM(nn.Module):
                 torch.nn.init.xavier_uniform_(torch.rand(self.num_layers, self.batch_size, self.hidden_dim)))
 
     def forward(self, input):
-        lstm_out, self.hidden = self.lstm(input.view(len(input), self.batch_size, -1))
-        y_pred = self.linear(lstm_out[-1].view(self.batch_size, -1))
+        lstm_out, self.hidden = self.lstm(input.view(len(input), self.batch_size, -1), self.init_hidden(self.batch_size))
+        intt = self.hidden[0].view(self.batch_size, self.hidden_dim)
+        y_pred = self.linear(intt)
         return y_pred.view(-1)
 
 
@@ -187,7 +188,7 @@ class MSEControl(torch.nn.Module):
 loss_mse = torch.nn.MSELoss(size_average=False)
 
 if FLAGS.ep:
-    test_methods = ['new', 'new2']
+    test_methods = ['new2', 'mse']
 else:
     test_methods = [FLAGS.loss]
 
@@ -208,7 +209,8 @@ for met in test_methods:
     print("Usando", method)
 
     model = LSTM(lstm_input_size, h1, batch_size=batch_size, output_dim=output_dim, num_layers=num_layers)
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    #optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.RMSprop(model.parameters(), lr=learning_rate, momentum=0.9)
     #optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
 
     pipe = TrainPipeline(model, loss_fn, optimizer, num_epochs, method, batch_size)

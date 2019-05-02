@@ -24,8 +24,7 @@ class TrainPipeline(object):
             x_data = self.x_data[:, i*self.batch : (i+1)*self.batch]
             s_data = self.s_data[i*self.batch : (i+1)*self.batch]
 
-            self.model.zero_grad()
-            self.model.hidden = self.model.init_hidden(self.batch)
+            self.opt.zero_grad()
 
             self.y_pred = self.model(x_data)
 
@@ -41,10 +40,8 @@ class TrainPipeline(object):
 
             self.hist[t] = loss.item()
 
-            self.opt.zero_grad()
 
             loss.backward()
-
             self.opt.step()
 
         self.y_pred = self.run()
