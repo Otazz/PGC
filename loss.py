@@ -40,8 +40,12 @@ class CasamentoMult(torch.nn.Module):
         self.sig = sig
 
     def forward(self, d, y):
-        d = self.toeplitz_like(d.unsqueeze(0), 50).t()
-        y = self.toeplitz_like(y.unsqueeze(0), 50).t()
+
+        d = d.unsqueeze(0)
+        y = y.unsqueeze(0)
+
+        d = self.toeplitz_like(d, 5).t()
+        y = self.toeplitz_like(y, 5).t()
 
         self.sqrt_pi = math.sqrt(((2 * math.pi) ** y.shape[1]) * (self.sig ** (2 * y.shape[1])))
 
@@ -66,20 +70,15 @@ class CasamentoMult(torch.nn.Module):
 
     def toeplitz_like(self, x, n):
         r = x
-        stop = x.shape[0] - 1
+        stop = x.shape[1] - 1
 
         if n < stop:
             stop = n
 
+        else:
+            stop = 2
+
         for i in range(stop):
             r = torch.cat((r, x.roll(i+1)), 0)
 
-        return r
-
-cd = CasamentoMult()
-
-d = torch.Tensor([2.]*1000)
-y = torch.Tensor([4.3448]*1000)
-loss = cd(d, y)
-print(loss)
-#loss.backward(7
+        return r.narrow(1, stop, x.shape[1] - stop)

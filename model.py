@@ -8,6 +8,8 @@ import argparse
 import numpy as np
 from scipy.signal import lfilter
 from get_data import get_data
+from loss import CasamentoMult, CasamentoLoss
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--n_epochs', type=int, default=1000,
@@ -110,72 +112,6 @@ class LSTM(nn.Module):
         intt = self.hidden[0].view(self.batch_size, self.hidden_dim)
         y_pred = self.linear(intt)
         return y_pred.view(-1)
-
-
-class CasamentoLoss(torch.nn.Module):
-    def __init__(self, sig=1.):
-        super(CasamentoLoss, self).__init__()
-        self.sig = sig
-        self.sqrt_pi = math.sqrt(2. * math.pi)
-
-    def forward(self, d, y):
-        d = d.unsqueeze(0)
-        y = y.unsqueeze(0)
-
-        combined = -2 * self.get_component(d, y)
-
-        same_y = self.get_component(y, y)
-
-        same_d = self.get_component(d, d)
-
-        return same_y + same_d + combined
-
-    def get_component(self, y1, y2):
-        d_int = (y1.t().repeat(1, y2.shape[1]) - y2.repeat(y1.shape[1], 1)) / self.sig
-        gaussian = torch.exp(-1/2. * d_int * d_int) * 1/(self.sig * self.sqrt_pi)
-        return torch.sum(gaussian) / (y1.shape[1] * y2.shape[1])
-
-class CasamentoMult(torch.nn.Module):
-    def __init__(self, sig=.5):
-        super(CasamentoMult, self).__init__()
-        self.sig = sig
-
-    def forward(self, d, y):
-        d = self.toeplitz_like(d.unsqueeze(0), 50).t()
-        y = self.toeplitz_like(y.unsqueeze(0), 50).t()
-
-        self.sqrt_pi = math.sqrt(((2 * math.pi) ** y.shape[1]) * (self.sig ** (2 * y.shape[1])))
-
-        d = d.unsqueeze(0)
-        y = y.unsqueeze(0)
-
-        combined = -2 * self.get_component(d, y)
-
-        same_y = self.get_component(y, y)
-
-        same_d = self.get_component(d, d)
-
-        return same_y + same_d + combined
-
-
-    def get_component(self, y1, y2):
-        d_int = (torch.transpose(y1, 0,1).repeat(1, y2.shape[1], 1) - y2.repeat(y1.shape[1], 1, 1))
-
-        mid = (1 /self.sig ** 2) * d_int * d_int
-        gaussian = torch.exp(-1/2. * mid) / self.sqrt_pi
-        return torch.sum(gaussian) / (y1.shape[1] * y2.shape[1])
-
-    def toeplitz_like(self, x, n):
-        r = x
-        stop = x.shape[0] - 1
-
-        if n < stop:
-            stop = n
-
-        for i in range(stop):
-            r = torch.cat((r, x.roll(i+1)), 0)
-
-        return r
 
 class MSEControl(torch.nn.Module):
     def __init__(self):
