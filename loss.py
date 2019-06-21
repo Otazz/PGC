@@ -38,12 +38,8 @@ class CasamentoMult(torch.nn.Module):
         self.sig = sig
 
     def forward(self, d, y):
-
-        d = d.unsqueeze(0)
-        y = y.unsqueeze(0)
-
-        d = self.toeplitz_like(d, 5).t()
-        y = self.toeplitz_like(y, 5).t()
+        d = self.toeplitz_like(d, 5)
+        y = self.toeplitz_like(y, 5)
 
         self.sqrt_pi = math.sqrt(((2 * math.pi) ** y.shape[1]) * (self.sig ** (2 * y.shape[1])))
 
